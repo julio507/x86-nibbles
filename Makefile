@@ -2,6 +2,10 @@ PROJECT = x86-nibbles
 
 SOURCES += src/main.c
 
+ASSOURCES = boot/loader.S boot/isr.S
+
+LDSCRIPT = linker.ld
+
 LIBPATH = lib
 include $(LIBPATH)/lib.mk
 
@@ -9,7 +13,10 @@ CC = gcc
 AS = nasm
 LD = ld
 CP = cp
-DEL = rm
+MV = mv
+CD = cd
+DEL = rm -rf
+ZIP = zip
 QEMU = qemu-system-i386
 
 CFLAGS  += -nostdinc -nostdlib -nodefaultlibs -nostartfiles -static \
@@ -19,6 +26,12 @@ ASFLAGS = -f elf32 -g -F dwarf -O0
 LDFLAGS = -m elf_i386 -nostdlib
 
 OBJECTS = $(SOURCES:.c=.o)
+ASOBJECTS = $(ASSOURCES:.S=.o)
+
+DATE=`date +"%Y%m%d"`
+ZIPFILE=$(PROJECT)-$(DATE).zip
+ZIP_EXCLUDE=-x '*.git*' -x '*.sw*' -x '*.o' -x '*.zip'
+LOCATION=$(shell basename `pwd`)
 
 all: $(PROJECT).elf
 
@@ -26,8 +39,8 @@ $(PROJECT).iso: $(PROJECT).elf
 	$(CP) $< iso/boot/kernel.elf
 	grub-mkrescue -o $@ iso
 
-$(PROJECT).elf: boot/loader.o boot/isr.o $(OBJECTS)
-	$(LD) $(LDFLAGS) -T linker.ld -o $@ $^
+$(PROJECT).elf: $(ASOBJECTS) $(OBJECTS)
+	$(LD) $(LDFLAGS) -T $(LDSCRIPT) -o $@ $^
 
 %.o: %.S
 	$(AS) $(ASFLAGS) $< -o $@
@@ -44,4 +57,8 @@ run: $(PROJECT).iso
 debug: kernel.elf
 	$(QEMU) -soundhw pcspk -serial mon:stdio -s -S -kernel $< &
 	gdb -iex "set auto-load safe-path .gdbinit" $<
+
+zip:
+	$(DEL) *.zip
+	$(CD) .. && $(ZIP) -r $(ZIPFILE) $(LOCATION) $(ZIP_EXCLUDE) && $(MV) $(ZIPFILE) $(LOCATION)
 

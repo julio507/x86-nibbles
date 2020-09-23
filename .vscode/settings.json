@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "multiboot.h": "c"
+        "*.cu": "cuda",
+        "multiboot.h": "c",
+        "cstdlib": "cpp",
+        "algorithm": "cpp"
     }
 }
