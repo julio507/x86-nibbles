@@ -22,6 +22,21 @@ char direction = 0;
 
 char pk;
 
+void usart_init(int base_addr)
+{
+
+}
+
+void usart_write(int base_addr, unsigned char c)
+{
+
+}
+
+void usart_puts(int base_addr, char *str)
+{
+
+}
+
 void draw_board(void)
 {
     draw_square(0, 0, 800, 600, BACKGROUND_COLOR);
