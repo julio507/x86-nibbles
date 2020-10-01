@@ -8,10 +8,13 @@
 #define BACKGROUND_COLOR 0x00FFFF
 #define PLAYER_COLOR 0xFFFFFF
 #define FRUIT_COLOR 0xFF0000
+#define SCORE_COLOR 0xFFFF00
 #define LEFT 0x4b
 #define RIGHT 0x4d
 #define UP 0x48
 #define DOWN 0x50
+
+int score = 0;
 
 int playerX = 10;
 int playerY = 300;
@@ -24,6 +27,11 @@ int speed = 5;
 char direction = 0;
 
 char pk;
+
+int positionsX[] = {500, 250, 100, 600};
+int positionsy[] = {300, 400, 200, 260};
+
+unsigned int p = 0;
 
 void usart_init(int base_addr)
 {
@@ -38,18 +46,18 @@ void usart_init(int base_addr)
 
 void usart_write(int base_addr, unsigned char c)
 {
-    while( ( inb(base_addr + 5) & 0x20 ) == 0 );
+    while ((inb(base_addr + 5) & 0x20) == 0){};
 
-    outb( base_addr, c );
+    outb(base_addr, c);
 }
 
 void usart_puts(int base_addr, char *str)
 {
     char c = *str;
 
-    while( c != STRING_END )
+    while (c != STRING_END)
     {
-        usart_write( base_addr, c );
+        usart_write(base_addr, c);
 
         str++;
 
@@ -70,6 +78,14 @@ void draw_player(int x, int y)
 void draw_fruit(int x, int y)
 {
     draw_square(x, y, 10, 10, FRUIT_COLOR);
+}
+
+void drawn_score()
+{
+    for (int i = 0; i < score; i++)
+    {
+        draw_square(10 * i, 10, 5, 5, SCORE_COLOR);
+    }
 }
 
 void clear(int x, int y)
@@ -103,6 +119,25 @@ void isr0()
     draw_player(playerX, playerY);
 
     draw_fruit(fruitX, fruitY);
+
+    drawn_score();
+
+    if (playerX + 10 >= fruitX && playerX <= fruitX + 10 && playerY + 10 >= fruitY && playerY <= fruitY + 10 )
+    {
+        clear(fruitX, fruitY);
+
+        score++;
+
+        p++;
+
+        if (p > (sizeof(positionsX) / sizeof(int)))
+        {
+            p = 0;
+        }
+
+        fruitX = positionsX[p];
+        fruitY = positionsy[p];
+    }
 }
 
 void isr1()
@@ -116,10 +151,6 @@ void isr1()
         if (k == LEFT || k == RIGHT || k == UP || k == DOWN)
         {
             direction = k;
-        }
-
-        if (playerX == fruitX && playerY == fruitY)
-        {
         }
     }
 }
@@ -136,17 +167,16 @@ int main(unsigned long addr)
 
     draw_board();
 
-    usart_init( PORT );
+    usart_init(PORT);
 
-    usart_write( PORT, 's' );
-    usart_write( PORT, 'a' );
-    usart_write( PORT, 'm' );
-    usart_write( PORT, 'u' );
-    usart_write( PORT, 'e' );
-    usart_write( PORT, 'l' );
+    usart_write(PORT, 's');
+    usart_write(PORT, 'a');
+    usart_write(PORT, 'm');
+    usart_write(PORT, 'u');
+    usart_write(PORT, 'e');
+    usart_write(PORT, 'l');
 
-
-    usart_puts( PORT, " preguiçoso" + STRING_END );
+    usart_puts(PORT, " preguiçoso" + STRING_END);
 
     while (1)
     {
