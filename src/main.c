@@ -29,7 +29,7 @@ void usart_init(int base_addr)
 {
     outb(base_addr + 1, 0x00);
     outb(base_addr + 3, 0x80);
-    outb(base_addr + 0, 0x03);
+    outb(base_addr + 0, 0x01);
     outb(base_addr + 1, 0x00);
     outb(base_addr + 3, 0x03);
     outb(base_addr + 2, 0xC7);
