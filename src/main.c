@@ -31,6 +31,10 @@ char pk;
 int positionsX[] = {500, 250, 100, 600};
 int positionsy[] = {300, 400, 200, 260};
 
+int vectorX[100];
+int vectorY[100];
+int directions[100];
+
 unsigned int p = 0;
 
 void usart_init(int base_addr)
@@ -46,7 +50,9 @@ void usart_init(int base_addr)
 
 void usart_write(int base_addr, unsigned char c)
 {
-    while ((inb(base_addr + 5) & 0x20) == 0){};
+    while ((inb(base_addr + 5) & 0x20) == 0)
+    {
+    };
 
     outb(base_addr, c);
 }
@@ -95,7 +101,27 @@ void clear(int x, int y)
 
 void isr0()
 {
-    clear(playerX, playerY);
+    for (int c = 0; c <= score; c++)
+    {
+        switch (directions[c])
+        {
+        case UP:
+            clear(vectorX[c], vectorY[c] + speed);
+            break;
+
+        case DOWN:
+            clear(vectorX[c], vectorY[c] - speed);
+            break;
+
+        case LEFT:
+            clear(vectorX[c] + speed, vectorY[c]);
+            break;
+
+        case RIGHT:
+            clear(vectorX[c] - speed, vectorY[c]);
+            break;
+        }
+    }
 
     switch (direction)
     {
@@ -116,13 +142,29 @@ void isr0()
         break;
     }
 
-    draw_player(playerX, playerY);
+    directions[score] = direction;
+
+    vectorX[score] = playerX;
+    vectorY[score] = playerY;
+
+    for (int c = 0; c <= score; c++)
+    {
+        draw_player(vectorX[c], vectorY[c]);
+
+        if (c < score)
+        {
+            directions[c] = directions[c + 1];
+
+            vectorX[c] = vectorX[c + 1];
+            vectorY[c] = vectorY[c + 1];
+        }
+    }
 
     draw_fruit(fruitX, fruitY);
 
     drawn_score();
 
-    if (playerX + 10 >= fruitX && playerX <= fruitX + 10 && playerY + 10 >= fruitY && playerY <= fruitY + 10 )
+    if (playerX + 10 >= fruitX && playerX <= fruitX + 10 && playerY + 10 >= fruitY && playerY <= fruitY + 10)
     {
         clear(fruitX, fruitY);
 
