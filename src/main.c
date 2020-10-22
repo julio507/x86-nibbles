@@ -60,13 +60,14 @@ unsigned int p = 0;
 
 void usart_init(int base_addr)
 {
-    outb(base_addr + 1, 0x00);
-    outb(base_addr + 3, 0x80);
-    outb(base_addr + 0, 0x01);
-    outb(base_addr + 1, 0x00);
-    outb(base_addr + 3, 0x03);
-    outb(base_addr + 2, 0xC7);
-    outb(base_addr + 4, 0x0B);
+   outb(base_addr + 1, 0x00);    // Disable all interrupts
+   outb(base_addr + 3, 0x80);    // Enable DLAB (set baud rate divisor)
+   outb(base_addr + 0, 0x01);    // Set divisor to 1 (lo byte) 115200 baud
+   outb(base_addr + 1, 0x00);    //                  (hi byte)
+   outb(base_addr + 3, 0x03);    // 8 bits, no parity, one stop bit
+   outb(base_addr + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
+   outb(base_addr + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+   outb(base_addr + 1, 0x01);    // Enable all interrupts
 }
 
 void usart_write(int base_addr, unsigned char c)
@@ -120,64 +121,126 @@ void clear(int x, int y)
     draw_square(x, y, 10, 10, BACKGROUND_COLOR);
 }
 
-void player(int color, int pX, int pY, int vX[], int vY[], int vD[], char d, int s)
+void player1()
 {
-    for (int c = 0; c <= s; c++)
+    for (int c = 0; c <= score1; c++)
     {
-        switch (vD[c])
+        switch (directions1[c])
         {
         case UP:
-            clear(vX[c], vY[c] + speed);
+            clear(vectorX1[c], vectorY1[c] + speed);
             break;
 
         case DOWN:
-            clear(vX[c], vY[c] - speed);
+            clear(vectorX1[c], vectorY1[c] - speed);
             break;
 
         case LEFT:
-            clear(vX[c] + speed, vY[c]);
+            clear(vectorX1[c] + speed, vectorY1[c]);
             break;
 
         case RIGHT:
-            clear(vX[c] - speed, vY[c]);
+            clear(vectorX1[c] - speed, vectorY1[c]);
             break;
         }
     }
 
-    switch (d)
+    switch (direction1)
     {
     case UP:
-        pY -= speed;
+        playerY1 -= speed;
         break;
 
     case DOWN:
-        pY += speed;
+        playerY1 += speed;
         break;
 
     case LEFT:
-        pX -= speed;
+        playerX1 -= speed;
         break;
 
     case RIGHT:
-        pX += speed;
+        playerX2 += speed;
         break;
     }
 
-    vD[s] = d;
+    directions1[score1] = direction1;
 
-    vX[s] = pX;
-    vY[s] = pY;
+    vectorX1[score1] = playerX1;
+    vectorY1[score1] = playerY1;
 
-    for (int c = 0; c <= s; c++)
+    for (int c = 0; c <= score1; c++)
     {
-        draw_player(vX[c], vY[c], color);
+        draw_player(vectorX1[c], vectorY1[c], PLAYER_COLOR1);
 
-        if (c < s)
+        if (c < score1)
         {
-            vD[c] = vD[c + 1];
+            directions1[c] = directions1[c + 1];
 
-            vX[c] = vX[c + 1];
-            vY[c] = vY[c + 1];
+            vectorX1[c] = vectorX1[c + 1];
+            vectorY1[c] = vectorY1[c + 1];
+        }
+    }
+}
+
+void player2()
+{
+    for (int c = 0; c <= score2; c++)
+    {
+        switch (directions2[c])
+        {
+        case UP:
+            clear(vectorX2[c], vectorY2[c] + speed);
+            break;
+
+        case DOWN:
+            clear(vectorX2[c], vectorY2[c] - speed);
+            break;
+
+        case LEFT:
+            clear(vectorX2[c] + speed, vectorY2[c]);
+            break;
+
+        case RIGHT:
+            clear(vectorX2[c] - speed, vectorY2[c]);
+            break;
+        }
+    }
+
+    switch (direction2)
+    {
+    case UP:
+        playerY2 -= speed;
+        break;
+
+    case DOWN:
+        playerY2 += speed;
+        break;
+
+    case LEFT:
+        playerX2 -= speed;
+        break;
+
+    case RIGHT:
+        playerX2 += speed;
+        break;
+    }
+
+    directions2[score2] = direction2;
+
+    vectorX2[score2] = playerX2;
+    vectorY2[score2] = playerY2;
+
+    for (int c = 0; c <= score2; c++)
+    {
+        draw_player(vectorX2[c], vectorY2[c], PLAYER_COLOR2);
+
+        if (c < score2)
+        {
+            directions2[c] = directions2[c + 1];
+
+            vectorX2[c] = vectorX2[c + 1];
+            vectorY2[c] = vectorY2[c + 1];
         }
     }
 }
@@ -204,9 +267,8 @@ void check_score(int pX, int pY, int s)
 
 void isr0()
 {
-    player(PLAYER_COLOR1, playerX1, playerY1, vectorX1, vectorY1, directions1, direction1, score1);
-
-    player(PLAYER_COLOR2, playerX2, playerY2, vectorX2, vectorY2, directions2, direction2, score2);
+    player1();
+    player2();
 
     draw_fruit(fruitX, fruitY);
 
@@ -284,8 +346,11 @@ void isr3()
     }
 
     else if( mode == SERVER )
-    {
-        direction2 = inb( PORT2 );
+    {    
+        if( inb( PORT2 ) == MESSAGE_START )
+        {
+            direction2 = inb( PORT2 );
+        }
     }
 }
 
