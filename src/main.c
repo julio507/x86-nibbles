@@ -60,14 +60,14 @@ unsigned int p = 0;
 
 void usart_init(int base_addr)
 {
-   outb(base_addr + 1, 0x00);    // Disable all interrupts
-   outb(base_addr + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-   outb(base_addr + 0, 0x01);    // Set divisor to 1 (lo byte) 115200 baud
-   outb(base_addr + 1, 0x00);    //                  (hi byte)
-   outb(base_addr + 3, 0x03);    // 8 bits, no parity, one stop bit
-   outb(base_addr + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-   outb(base_addr + 4, 0x0B);    // IRQs enabled, RTS/DSR set
-   outb(base_addr + 1, 0x01);    // Enable all interrupts
+    outb(base_addr + 1, 0x00); // Disable all interrupts
+    outb(base_addr + 3, 0x80); // Enable DLAB (set baud rate divisor)
+    outb(base_addr + 0, 0x01); // Set divisor to 1 (lo byte) 115200 baud
+    outb(base_addr + 1, 0x00); //                  (hi byte)
+    outb(base_addr + 3, 0x03); // 8 bits, no parity, one stop bit
+    outb(base_addr + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
+    outb(base_addr + 4, 0x0B); // IRQs enabled, RTS/DSR set
+    outb(base_addr + 1, 0x01); // Enable all interrupts
 }
 
 void usart_write(int base_addr, unsigned char c)
@@ -108,7 +108,7 @@ void draw_fruit(int x, int y)
     draw_square(x, y, 10, 10, FRUIT_COLOR);
 }
 
-void drawn_score( int s, int pad, int color )
+void drawn_score(int s, int pad, int color)
 {
     for (int i = 0; i < s; i++)
     {
@@ -160,7 +160,7 @@ void player1()
         break;
 
     case RIGHT:
-        playerX2 += speed;
+        playerX1 += speed;
         break;
     }
 
@@ -245,13 +245,33 @@ void player2()
     }
 }
 
-void check_score(int pX, int pY, int s)
+void check_score1()
 {
-    if (pX + 10 >= fruitX && pX <= fruitX + 10 && pY + 10 >= fruitY && pY <= fruitY + 10)
+    if (playerX1 + 10 >= fruitX && playerX1 <= fruitX + 10 && playerY1 + 10 >= fruitY && playerY1 <= fruitY + 10)
     {
         clear(fruitX, fruitY);
 
-        s++;
+        score1++;
+
+        p++;
+
+        if (p > (sizeof(positionsX) / sizeof(int)))
+        {
+            p = 0;
+        }
+
+        fruitX = positionsX[p];
+        fruitY = positionsy[p];
+    }
+}
+
+void check_score2()
+{
+    if (playerX2 + 10 >= fruitX && playerX2 <= fruitX + 10 && playerY2 + 10 >= fruitY && playerY2 <= fruitY + 10)
+    {
+        clear(fruitX, fruitY);
+
+        score2++;
 
         p++;
 
@@ -272,37 +292,21 @@ void isr0()
 
     draw_fruit(fruitX, fruitY);
 
-    drawn_score( score1, 0, SCORE_COLOR1 );
+    drawn_score(score1, 0, SCORE_COLOR1);
 
-    drawn_score( score2, 5, SCORE_COLOR2 );
+    drawn_score(score2, 5, SCORE_COLOR2);
 
-    if( mode == CLIENT )
-    {
-        usart_write( PORT2, MESSAGE_START );
-        usart_write( PORT2, direction2 );
-    }
+    check_score1();
 
-    else if( mode == SERVER )
-    {
-        check_score(playerX1, playerY1, score1);
-
-        check_score(playerX2, playerY2, score2);
-
-        usart_write( PORT2, MESSAGE_START );
-        usart_write( PORT2, direction1 );
-        usart_write( PORT2, score1 );
-        usart_write( PORT2, score2 );
-        usart_write( PORT2, fruitX );
-        usart_write( PORT2, fruitY );
-    }
-    
+    check_score2();
 }
 
 void isr1()
 {
-    if( mode == NONE )
+    if (mode == NONE)
     {
-        mode = SERVER;        
+        mode = SERVER;
+        usart_puts(PORT1, "\nserver mode" + STRING_END);
     }
 
     char k = inb(0x60);
@@ -313,15 +317,27 @@ void isr1()
 
         if (k == LEFT || k == RIGHT || k == UP || k == DOWN)
         {
-            if( mode == SERVER )
+            if (mode == SERVER)
             {
                 direction1 = k;
             }
 
-            else if( mode == CLIENT ) 
+            else if (mode == CLIENT)
             {
                 direction2 = k;
             }
+        }
+
+        if (mode == CLIENT)
+        {
+            usart_write(PORT2, MESSAGE_START);
+            usart_write(PORT2, direction2);
+        }
+
+        else if (mode == SERVER)
+        {
+            usart_write(PORT2, MESSAGE_START);
+            usart_write(PORT2, direction1);
         }
     }
 }
@@ -331,25 +347,22 @@ void isr3()
     if (mode == NONE)
     {
         mode = CLIENT;
+        usart_puts(PORT1, "\nclient mode" + STRING_END);
     }
 
     if (mode == CLIENT)
     {
-        if( inb( PORT2 ) == MESSAGE_START )
+        if (inb(PORT2) == MESSAGE_START)
         {
-            direction1 = inb( PORT2 );
-            score1 = inb( PORT2 );
-            score2 = inb( PORT2 );
-            fruitX = inb( PORT2 );
-            fruitY = inb( PORT2 );
+            direction1 = inb(PORT2);
         }
     }
 
-    else if( mode == SERVER )
-    {    
-        if( inb( PORT2 ) == MESSAGE_START )
+    else if (mode == SERVER)
+    {
+        if (inb(PORT2) == MESSAGE_START)
         {
-            direction2 = inb( PORT2 );
+            direction2 = inb(PORT2);
         }
     }
 }
