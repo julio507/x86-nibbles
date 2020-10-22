@@ -49,7 +49,7 @@ $(PROJECT).elf: $(ASOBJECTS) $(OBJECTS)
 	$(CC) -c $(CFLAGS) -o $@ $(CCFLAGS) $<
 
 clean:
-	$(DEL) -f **/*.elf *.o **/*.o **/**/*.o iso/boot/*.elf *.img *.iso *.elf
+	$(DEL) -f **/*.elf *.o **/*.o **/**/*.o iso/boot/*.elf *.img *.iso *.iso-2 *.elf
 
 run: $(PROJECT).iso
 	$(QEMU) -soundhw pcspk -serial mon:stdio -hda $< 
