@@ -2,38 +2,59 @@
 #include <multiboot.h>
 #include <gfx/video.h>
 
-#define PORT 0x3F8
+#define PORT1 0x3F8
+#define PORT2 0x2F8
+
 #define STRING_END '\0'
 
 #define BACKGROUND_COLOR 0x00FFFF
-#define PLAYER_COLOR 0xFFFFFF
+#define PLAYER_COLOR1 0xFFFFFF
+#define PLAYER_COLOR2 0x008000
 #define FRUIT_COLOR 0xFF0000
-#define SCORE_COLOR 0xFFFF00
+#define SCORE_COLOR1 0xFFFF00
+#define SCORE_COLOR2 0xFFA500
 #define LEFT 0x4b
 #define RIGHT 0x4d
 #define UP 0x48
 #define DOWN 0x50
 
-int score = 0;
+#define NONE 0
+#define SERVER 1
+#define CLIENT 2
 
-int playerX = 10;
-int playerY = 300;
+#define MESSAGE_START 0xFF
+
+int mode = NONE;
+
+int score1 = 0;
+int score2 = 0;
+
+int playerX1 = 10;
+int playerY1 = 300;
+
+int playerX2 = 100;
+int playerY2 = 300;
 
 int fruitX = 500;
 int fruitY = 300;
 
 int speed = 5;
 
-char direction = 0;
+char direction1 = 0;
+char direction2 = 0;
 
 char pk;
 
 int positionsX[] = {500, 250, 100, 600};
 int positionsy[] = {300, 400, 200, 260};
 
-int vectorX[100];
-int vectorY[100];
-int directions[100];
+int vectorX1[100];
+int vectorY1[100];
+int directions1[100];
+
+int vectorX2[100];
+int vectorY2[100];
+int directions2[100];
 
 unsigned int p = 0;
 
@@ -76,9 +97,9 @@ void draw_board(void)
     draw_square(0, 0, 800, 600, BACKGROUND_COLOR);
 }
 
-void draw_player(int x, int y)
+void draw_player(int x, int y, int color)
 {
-    draw_square(x, y, 10, 10, PLAYER_COLOR);
+    draw_square(x, y, 10, 10, color);
 }
 
 void draw_fruit(int x, int y)
@@ -86,11 +107,11 @@ void draw_fruit(int x, int y)
     draw_square(x, y, 10, 10, FRUIT_COLOR);
 }
 
-void drawn_score()
+void drawn_score( int s, int pad, int color )
 {
-    for (int i = 0; i < score; i++)
+    for (int i = 0; i < s; i++)
     {
-        draw_square(10 * i, 10, 5, 5, SCORE_COLOR);
+        draw_square(10 * i, 10 + pad, 5, 5, color);
     }
 }
 
@@ -99,76 +120,75 @@ void clear(int x, int y)
     draw_square(x, y, 10, 10, BACKGROUND_COLOR);
 }
 
-void isr0()
+void player(int color, int pX, int pY, int vX[], int vY[], int vD[], char d, int s)
 {
-    for (int c = 0; c <= score; c++)
+    for (int c = 0; c <= s; c++)
     {
-        switch (directions[c])
+        switch (vD[c])
         {
         case UP:
-            clear(vectorX[c], vectorY[c] + speed);
+            clear(vX[c], vY[c] + speed);
             break;
 
         case DOWN:
-            clear(vectorX[c], vectorY[c] - speed);
+            clear(vX[c], vY[c] - speed);
             break;
 
         case LEFT:
-            clear(vectorX[c] + speed, vectorY[c]);
+            clear(vX[c] + speed, vY[c]);
             break;
 
         case RIGHT:
-            clear(vectorX[c] - speed, vectorY[c]);
+            clear(vX[c] - speed, vY[c]);
             break;
         }
     }
 
-    switch (direction)
+    switch (d)
     {
     case UP:
-        playerY -= speed;
+        pY -= speed;
         break;
 
     case DOWN:
-        playerY += speed;
+        pY += speed;
         break;
 
     case LEFT:
-        playerX -= speed;
+        pX -= speed;
         break;
 
     case RIGHT:
-        playerX += speed;
+        pX += speed;
         break;
     }
 
-    directions[score] = direction;
+    vD[s] = d;
 
-    vectorX[score] = playerX;
-    vectorY[score] = playerY;
+    vX[s] = pX;
+    vY[s] = pY;
 
-    for (int c = 0; c <= score; c++)
+    for (int c = 0; c <= s; c++)
     {
-        draw_player(vectorX[c], vectorY[c]);
+        draw_player(vX[c], vY[c], color);
 
-        if (c < score)
+        if (c < s)
         {
-            directions[c] = directions[c + 1];
+            vD[c] = vD[c + 1];
 
-            vectorX[c] = vectorX[c + 1];
-            vectorY[c] = vectorY[c + 1];
+            vX[c] = vX[c + 1];
+            vY[c] = vY[c + 1];
         }
     }
+}
 
-    draw_fruit(fruitX, fruitY);
-
-    drawn_score();
-
-    if (playerX + 10 >= fruitX && playerX <= fruitX + 10 && playerY + 10 >= fruitY && playerY <= fruitY + 10)
+void check_score(int pX, int pY, int s)
+{
+    if (pX + 10 >= fruitX && pX <= fruitX + 10 && pY + 10 >= fruitY && pY <= fruitY + 10)
     {
         clear(fruitX, fruitY);
 
-        score++;
+        s++;
 
         p++;
 
@@ -182,8 +202,47 @@ void isr0()
     }
 }
 
+void isr0()
+{
+    player(PLAYER_COLOR1, playerX1, playerY1, vectorX1, vectorY1, directions1, direction1, score1);
+
+    player(PLAYER_COLOR2, playerX2, playerY2, vectorX2, vectorY2, directions2, direction2, score2);
+
+    draw_fruit(fruitX, fruitY);
+
+    drawn_score( score1, 0, SCORE_COLOR1 );
+
+    drawn_score( score2, 5, SCORE_COLOR2 );
+
+    if( mode == CLIENT )
+    {
+        usart_write( PORT2, MESSAGE_START );
+        usart_write( PORT2, direction2 );
+    }
+
+    else if( mode == SERVER )
+    {
+        check_score(playerX1, playerY1, score1);
+
+        check_score(playerX2, playerY2, score2);
+
+        usart_write( PORT2, MESSAGE_START );
+        usart_write( PORT2, direction1 );
+        usart_write( PORT2, score1 );
+        usart_write( PORT2, score2 );
+        usart_write( PORT2, fruitX );
+        usart_write( PORT2, fruitY );
+    }
+    
+}
+
 void isr1()
 {
+    if( mode == NONE )
+    {
+        mode = SERVER;        
+    }
+
     char k = inb(0x60);
 
     if (k != pk)
@@ -192,8 +251,41 @@ void isr1()
 
         if (k == LEFT || k == RIGHT || k == UP || k == DOWN)
         {
-            direction = k;
+            if( mode == SERVER )
+            {
+                direction1 = k;
+            }
+
+            else if( mode == CLIENT ) 
+            {
+                direction2 = k;
+            }
         }
+    }
+}
+
+void isr3()
+{
+    if (mode == NONE)
+    {
+        mode = CLIENT;
+    }
+
+    if (mode == CLIENT)
+    {
+        if( inb( PORT2 ) == MESSAGE_START )
+        {
+            direction1 = inb( PORT2 );
+            score1 = inb( PORT2 );
+            score2 = inb( PORT2 );
+            fruitX = inb( PORT2 );
+            fruitY = inb( PORT2 );
+        }
+    }
+
+    else if( mode == SERVER )
+    {
+        direction2 = inb( PORT2 );
     }
 }
 
@@ -209,16 +301,17 @@ int main(unsigned long addr)
 
     draw_board();
 
-    usart_init(PORT);
+    usart_init(PORT1);
+    usart_init(PORT2);
 
-    usart_write(PORT, 's');
-    usart_write(PORT, 'a');
-    usart_write(PORT, 'm');
-    usart_write(PORT, 'u');
-    usart_write(PORT, 'e');
-    usart_write(PORT, 'l');
+    usart_write(PORT1, 's');
+    usart_write(PORT1, 'a');
+    usart_write(PORT1, 'm');
+    usart_write(PORT1, 'u');
+    usart_write(PORT1, 'e');
+    usart_write(PORT1, 'l');
 
-    usart_puts(PORT, " preguiçoso" + STRING_END);
+    usart_puts(PORT1, " preguiçoso" + STRING_END);
 
     while (1)
     {

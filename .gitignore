@@ -57,6 +57,7 @@
 iso/boot/*.elf 
 *.img 
 *.iso 
+*.iso-2
 *.elf
 
 *.zip

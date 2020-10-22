@@ -1,0 +1,4 @@
+#!/bin//sh
+
+socat TCP4-LISTEN:1111 TCP4-LISTEN:2222
+

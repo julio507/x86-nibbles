@@ -54,6 +54,13 @@ clean:
 run: $(PROJECT).iso
 	$(QEMU) -soundhw pcspk -serial mon:stdio -hda $< 
 
+run-multi-1: $(PROJECT).iso
+	$(QEMU) -soundhw pcspk -serial mon:stdio -serial telnet:localhost:1111,nowait -drive format=raw,file=$<
+
+run-multi-2: $(PROJECT).iso
+	cp $< $<-2
+	$(QEMU) -soundhw pcspk -serial mon:stdio -serial telnet:localhost:2222,nowait -drive format=raw,file=$<-2
+
 debug: kernel.elf
 	$(QEMU) -soundhw pcspk -serial mon:stdio -s -S -kernel $< &
 	gdb -iex "set auto-load safe-path .gdbinit" $<
